@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>D3 Bubble Chart</title>
+        <script src="https://d3js.org/d3.v3.js"></script>
+        <style>
+        </style>
+    </head>
+    <body>
+        <div id="diagram"></div>
+        <script type="text/javascript">
+        var data = {
+            name: 'root',
+            children: [
+            { name: 'Uncle tom\'s cabin', level: 5},
+            { name: 'Grapes of wrath', level: 9},
+            { name: 'Jane Eyre', level: 8},
+            { name: 'Harry potter', level: 2},
+            { name: 'A thousand leagues under the sea', level: 1},
+            { name: 'The alchemist', level: 7},
+            { name: 'The duel', level: 5},
+            ]
+        };
+
+        var width = 300,
+            height = 300,
+            baseRadius = 25,
+            color = d3.scale.category10(),
+            maxNameLen = 8;
+
+        d3.select('#diagram').select('svg').remove();
+
+        var svg = d3.select('#diagram').append('svg:svg')
+        .attr('width', width)
+        .attr('height', height)
+        .append('g');
+
+        var bubble = d3.layout.pack()
+        .sort(null)
+        .value(function(d) { return (d.level*baseRadius) + baseRadius;})
+        .size([width, height])
+        .nodes(data);
+
+        // Get rid of root node
+        bubble.shift();
+
+        var node = svg.selectAll('.node')
+        .data(bubble)
+        .enter()
+        .append('g')
+        .attr('class', 'node')
+        .attr('transform', function(d) { return 'translate(' + d.x + ',' + d.y + ')'; });
+
+        /* add moveToFront to selection */
+        d3.selection.prototype.moveToFront = function() {
+          return this.each(function(){
+            this.parentNode.parentNode.appendChild(this.parentNode);
+          });
+        };
+
+        node.append('circle')
+        .attr('r', function(d) { return d.r;})
+        .style('fill', function(d) { return color(d.name); })
+        .on('mouseover', function(d, i) {
+            let div = d3.select(this);
+            div.transition()
+                .duration(200)
+                .style('opacity', 0.9)
+                .attr('r', d.r + baseRadius);
+            div.moveToFront();
+
+            d3.select(this.parentNode).selectAll('text')
+                .text(function(d) { return d.name;})
+                .call(wrap, 100);
+         })
+        .on('mouseout', function(d, i) {
+            let div = d3.select(this);
+            div.transition()
+                .duration(200)
+                .style('opacity', 1)
+                .attr('r', d.r);
+            // set the text back to the way it was
+            d3.select(this.parentNode).selectAll('text')
+                .text(function(d) { return d.name;})
+                .call(wrap, maxNameLen);
+        });
+
+        node.append('text')
+        .attr('dy', '.1em')
+        .style('text-anchor', 'middle')
+        .style('pointer-events', 'none')
+        .text(function(d) { return d.name;})
+        .call(wrap, maxNameLen);
+
+        function wrap(text, width) {
+          text.each(function() {
+            var text = d3.select(this);
+            if (text.text().length > width) {
+                text.text(text.text().substr(0, maxNameLen-3) + '...');
+                return;
+            }
+            var words = text.text().split(/\s+/).reverse(),
+                word,
+                line = [],
+                lineNumber = 0,
+                lineHeight = 0.5,
+                y = text.attr('y'),
+                dy = parseFloat(text.attr('dy')),
+                tspan = text.text(null)
+                            .append('tspan')
+                            .attr('x', 0)
+                            .attr('y', y)
+                            .attr('dy', dy + 'em');
+            if (words.length == 1)
+                lineNumber = -1;
+            while (word = words.pop()) {
+              line.push(word);
+              tspan.text(line.join(' '));
+              if (tspan.node().getComputedTextLength() > width) {
+                line.pop();
+                tspan.text(line.join(' '));
+                line = [word];
+                tspan = text.append('tspan')
+                            .attr('x', 0)
+                            .attr('y', y)
+                            .attr('dy', ++lineNumber * lineHeight + dy + 'em')
+                            .text(word);
+              }
+            }
+          });
+        }
+        </script>
+    </body>
+</html>
